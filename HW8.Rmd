@@ -1,0 +1,97 @@
+---
+title: "Homework 8"
+author: "Chandrima Bhattacharya"
+date: "7 March 2019"
+output: 
+  pdf_document: default
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# 
+# library(ggplot2)
+# #library(magrittr)
+library(DESeq2)
+# library(GenomeInfoDb)
+```
+
+## Question 1
+
+Read count defines the number of reads or fragments overlapping with the union of exons of a gene.  
+Properties of read counts are influenced by the follow.  
+
+* They are influenced by the sequencing depth. Usually, deeper sequencing gives higher expression value.
+* The length of the gene and GC-bias associated with them are also responsible for difference in read counts value.
+* The RNA-composition of the different individual gene abundances are responsible for affecting read counts. Highly-expressed transcripts usually can sometimes dominate reducing the reads count available for the rest of the transcripts.  
+
+Correction techniques for the following is defined below.
+
+* Sequencing depth needs to be corrected when we are comparing the same gene between different samples. If we are using DESeq2, we can use one of it's function *estimateSizeFactors()* to correct the depth. It uses multiple statistical normalization steps for the following. There are other functions which are defined also for the same!
+* The gene length and the GC% in the transcript sequence needs to be corrected while comparing different genes. For this we can use TPM or Transcript per Million normalization technique. TPM normalizes for gene length first, and then normalize for sequencing depth second, and hence performs better than RPKM.
+* Individual gene abundances needs to be corrected when we are comparing the same gene between different samples. *rlog* is a DESeq2 function which does that by transforming the the count data to the log2 scale in a way which minimizes differences between samples for rows with small counts, and which normalizes with respect to library size. 
+
+
+## Question 2
+
+```{runHelp}
+?rlog()
+?DESeqDataSetFromMatrix
+```
+
+```{rlogHelp}
+rlog(object, blind = TRUE, intercept, betaPriorVar, fitType = "parametric")
+```
+
+```{DESeqDataSetFromMatrixHelp}
+DESeqDataSetFromMatrix(countData, colData, design, tidy = FALSE,
+  ignoreRank = FALSE, ...)
+```
+
+```{r rlogfunc}
+#suppressPackageStartupMessages(library(GenomeInfoDb))
+DEseq.rlog <- load('rlog2.Rdata')
+DEseqDS <- load('DESeq.Rdata')
+load('rlog.norm.counts.Rdata')
+#DEseqDS <- readRDS("DESeq.rds")
+#DEseq.rlog <- readRDS("rlog2.rds")
+showClass(class (DESeq.rlog))
+showClass(class (DEseqDS))
+```
+
+
+#### a
+
+Similarities:  
+* Both are S4 objects.
+
+#### b
+
+The assay function will help us extract the expression values stored in either object.  
+The function rlog returns a SummarizedExperiment object which contains the rlog-transformed values in its assay slot.
+
+```{assayHelp}
+head(assay(DEseq.rlog))
+head(assay(DEseqDS))
+```
+
+#### c
+
+```{saveMetadata}
+DEseq.rlog@metadata$my_normalization <- assay(DEseq.rlog)
+```
+
+#### Question 3
+
+```{r plotting}
+rlog.norm.counts <- readRDS("rlog.norm.counts.rds")
+pw_cor <- cor(rlog.norm.counts, method = "pearson")
+distance.m_rlog <- as.dist(1-pw_cor)
+plot(hclust(distance.m_rlog),labels=colnames(rlog.norm.counts),main="rlog transformed read counts")
+
+# PCA plot
+plotPCA(DEseq.rlog, intgroup=c("condition"))
+```
