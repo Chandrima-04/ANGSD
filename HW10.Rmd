@@ -1,0 +1,208 @@
+---
+title: "Homework 10"
+author: "Chandrima Bhattacharya"
+date: "25 March 2019"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: true
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libraryCall}
+suppressWarnings(suppressPackageStartupMessages(library(ggplot2)))
+suppressWarnings(suppressPackageStartupMessages(library(DESeq2)))
+suppressWarnings(suppressPackageStartupMessages(library(dplyr)))
+suppressWarnings(suppressPackageStartupMessages(library(SingleCellExperiment)))
+suppressWarnings(suppressPackageStartupMessages(library(scater)))
+suppressWarnings(suppressPackageStartupMessages(library(gridExtra)))
+suppressWarnings(suppressPackageStartupMessages(library(scran)))
+suppressWarnings(suppressPackageStartupMessages(library(Seurat)))
+```
+
+## Question 1
+
+```{r readFile}
+reads <- read.table("WT-1.dge.txt.gz", header=TRUE)
+```
+
+#### a
+
+The rows contains the various Genes (most probably arranged in alphabetical order), while the columns represent cells.  There is 25319 rows and 1400 single cells. 
+
+#### b 
+
+```{r sceObject}
+rownames(reads) <- reads$GENE
+reads$GENE <- NULL
+matrix <- as.matrix(reads)
+sce <- SingleCellExperiment(assays = list(counts = matrix))
+sce
+```
+
+#### c
+
+```{r countMatrix}
+counts(sce[1:10,1:10])
+```
+
+#### d
+
+```{r sequencingDepths}
+sequencing_depth <- as.data.frame(colSums(counts(sce[,1:5]), na.rm = TRUE))
+sequencing_depth
+```
+
+#### e
+
+```{r countZero}
+sce_sub <- as.data.frame(counts(sce[,1:5]))
+not_zero <-  length(which(rowSums(sce_sub) != 0))
+print(paste(" In the first five cells, there are ",not_zero, " gene counts greater than 0"))
+```
+
+#### f
+
+By changing the row names and column names of the following, we can keep in track by the metadata. 
+
+```{r changeDim}
+cell_meta <- data.frame(cell_id = c(paste0("cell_", 1:1400)))
+rownames(cell_meta) <- colnames(sce)
+cell_meta$cell_ids <- colnames(sce)
+gene_meta <- data.frame(gene_id = c(paste0("gene_", 1:25319)))
+rownames(gene_meta) <- rownames(sce)
+gene_meta$gene_ids <- rownames(sce)
+colData(sce) <- DataFrame(cell_meta)
+rowData(sce) <- DataFrame(gene_meta)
+colnames(sce) <- sce$cell_id
+counts(sce[1:15,1:15])
+```
+
+#### g
+ 
+```{r histPlots}
+mt.genes <- grep(pattern = "^MT-", rownames(sce), value = TRUE)
+sce <- calculateQCMetrics(sce, feature_controls=list(Mito=c(mt.genes)))
+par(mfrow=c(1,3))
+hist(sce$log10_total_counts, breaks=20, col="skyblue",
+    xlab="Log-total UMI count")
+hist(sce$log10_total_features_by_counts, breaks=20, col="skyblue",
+    xlab="Log-total no of expressed features")
+hist(sce$pct_counts_Mito, breaks=20, col="skyblue",
+    xlab="Read proportion in mitochondrial genes")
+```
+
+```{r vioPlots}
+sce_QC <- as.data.frame(sce$total_counts, row.names = colnames(sce))
+sce_QC$no_UMI <- sce$total_counts
+sce_QC$`sce$total_counts` <- NULL
+sce_QC$no_Features <- sce$total_features_by_counts
+sce_QC$identity <- c(rep("droplet_sce",ncol(sce_QC)))
+sce_QC$percent_mito <- sce$pct_counts_Mito
+
+
+# make violin plots
+plot1 <- ggplot(sce_QC, aes(x=identity, y=no_UMI)) +
+  geom_violin(trim=FALSE, fill='purple', color="red")+
+  geom_jitter(shape=16, position=position_jitter(0.1))+ggtitle("no_UMI")
+plot2 <- ggplot(sce_QC, aes(x=identity, y=no_Features)) +
+  geom_violin(trim=FALSE, fill='purple', color="red")+
+  geom_jitter(shape=16, position=position_jitter(0.1))+ggtitle("no_Features")
+plot3 <- ggplot(sce_QC, aes(x=identity, y=percent_mito)) +
+  geom_violin(trim=FALSE, fill='purple', color="red")+
+  geom_jitter(shape=16, position=position_jitter(0.1))+ggtitle("percent_mito")
+grid.arrange(plot1, plot2, plot3, ncol=3)
+```
+
+The number of transcripts in each cell is represented by UMI or total count. Every transcript recieved an UMI for droplet based sequencing. UMI can also be represented as library size as it adds the count value in a cell in the matrix.   
+The total number of genes or features includes all the genes with count value for each cell greater than zero.  
+The log transform gives a near normal distribution while the violin plots help to visualize the data distribution.
+
+
+#### h
+
+
+```{r filtering}
+sce <- sce[, sce$total_counts > 200]
+sce <- sce[, sce$total_counts < 20000]
+sce <- sce[, sce$total_features_by_counts > 150]
+sce <- sce[, sce$total_features_by_counts < 6000]
+sce <- sce[,sce$pct_counts_Mito < 50]
+sce
+```
+
+I did filtering based on the following criterias:
+200< no of UMI < 20000  
+150 < no of features < 6000  
+mRNA content > 50%  
+
+We see, there are 1371 cells still being there. So, 97% of my cells are still being there after removing cells based on above criteria. Also, no outlier analysis was done!  The numbers were arbitarily decided.
+
+#### i
+
+```{r normalization}
+sce <- computeSumFactors(sce, min.mean=0.1)
+summary(sizeFactors(sce))
+plot(sce$total_counts, sizeFactors(sce), log="xy", col="red")
+sce_normalize <- scater::normalize(sce,
+  exprs_values = "counts", return_log = TRUE,
+  log_exprs_offset = NULL, centre_size_factors = TRUE,
+  preserve_zeroes = FALSE)
+```
+
+We see that there is high correlation. This implies bias in sequencing depth and capture efficiancy. 
+
+## Question 2
+
+#### a
+
+```{r createSeuratOb}
+counts <- reads
+Seurat_obj <- CreateSeuratObject(counts, project = "Seurat")
+```
+
+#### b
+
+```{r FilterSeurat}
+mito <- grep(pattern = "^MT-", x = rownames(x = Seurat_obj@data), value = TRUE)
+mito_frac <- Matrix::colSums(Seurat_obj@raw.data[mito, ])/ Matrix::colSums(Seurat_obj@raw.data)
+Seurat_obj <- AddMetaData(object = Seurat_obj, metadata = mito_frac, col.name = "mito_frac")
+Seurat_obj <- FilterCells(object = Seurat_obj, 
+                       subset.names = c("nUMI", "nGene", "mito_frac"), 
+                       low.thresholds = c(200, 150, 0), high.thresholds = c(20000,6000,50))
+```
+
+
+#### c
+
+```{r normalizeSeurat}
+Seurat_obj <- NormalizeData(object = Seurat_obj, 
+                           normalization.method = "LogNormalize", 
+                           scale.factor = 1e4)
+```
+
+You access the normalized counts by GetAssayData(object = Seurat_obj). 
+
+
+#### d
+
+```{r comparision}
+colnames(sce_normalize) <- sce_normalize$cell_ids
+plot(x = GetAssayData(object = Seurat_obj)[,1:10], 
+     y = logcounts(sce_normalize[,1:10]))
+title(main = "]Comparison of SCE vs Seurat normalized data", 
+      xlab = "Seurat data", ylab = "SCE data")
+```
+
+We see high correlation. It is nearly x=y relation, but that is because Seurat uses the same normalization features and we used the same filtering methods.
+
+## Question 3
+
+We see that the UMAP and tSNA dimentional reduction can help us differentiate cell type based on clustering. Various cell-types like BCell, CD4 and CD8 Tcells, etc. all form their own clusters. Same we can do for bone, cartiledge, etc., as long as we have access to data. If we can superimpose our sample over the total cell, we can find where the following sample is aligning. This would help us figure out what our sample is!
+Also, we can take a rigorous identification protocol, by which we would look at the gene expression and match the sample based on database.
+I was not being able to do it myself because of version compatibility, but based on discussion with Rekha, I guess it may be endocrine tissues, based on Protein Atlas database. 
