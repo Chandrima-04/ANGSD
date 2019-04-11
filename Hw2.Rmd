@@ -1,0 +1,98 @@
+---
+title: "Homework 2"
+author: "Chandrima Bhattacharya"
+date: "18 January 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+### Making Directory:
+
+Initially I created a directory for compiling all my Homework, followed by the fact that I made another directory for HW-Week2. 
+
+```{}
+mkdir angsd_hw
+cd angsd_hw
+mkdir hw2
+cd hw2
+```
+
+### Downloading Data:
+
+In the HW2 Directory, I downloaded all the size files from UCSC browser for S. cerevisiae.
+
+```{}
+wget http://hgdownload.soe.ucsc.edu/goldenPath/sacCer1/bigZips/sacCer1.chrom.sizes
+wget http://hgdownload.soe.ucsc.edu/goldenPath/sacCer2/bigZips/sacCer2.chrom.sizes
+wget http://hgdownload.soe.ucsc.edu/goldenPath/sacCer3/bigZips/sacCer3.chrom.sizes
+```
+
+
+### Sorting Data:
+
+I sorted the data in reverse numerical order. Only file 1 from 2003 needed to be sorted as the rest of the 2 files were already sorted. 
+
+
+
+```{}
+cat sacCer1.chrom.sizes | sort --reverse -n -k 2 sacCer1.chrom.sizes > s1.chrom.sizes
+
+```
+
+### Merging Tables using Join:
+
+I merged the tables containin data for year 2008 and 2011 using the join command. Data from 2008 showed an unique mention of having "2micron	6318". As it was inner-join, this column got dropped. Also, as 2micron and it's frequency is mentioned once , I didn't keep it in the final table.
+
+```{}
+join -t $'\t' sacCer2.chrom.sizes sacCer3.chrom.sizes > s2s3.chrom.sizes
+```
+
+### Merging Tables using Paste:
+
+I merged the table I got from above with data from Table 1 using paste. This keeps the column containing Chromosome Number. Hence, after the following command we have both Roman and Numerical Chromosome Number Column.
+
+```{}
+paste s1.chrom.sizes s2s3.chrom.sizes > s.chrom.sizes
+```
+### Final Table:
+
+Finally, I used cut command to delete the roman numerical chromosome number, thus attaining our goal to have a tabular view of the data as presented below.The table is sorted based on size of Chromosome and I have presented it in the following way below.
+
+```{}
+cat s.chrom.sizes | cut -f 1,2,4,5 > stot.chrom.sizes
+cat stot.chrom.sizes
+```
+
+
+Chromsome | S. cerevisiae (2003) | S. cerevisiae (2008) | S. cerevisiae (2011)
+----------|-------|-------|-------
+chr4 | 1531914 | 1531919 | 1531933
+chr15 | 1091285 | 1091289 | 1091291
+chr7 | 1090944 | 1090947 | 1090940
+chr12 | 1078173 | 1078175 | 1078177
+chr16 | 948060 | 948062 | 948066
+chr13 | 924430 | 924429 | 924431
+chr2 | 813136 | 813178 | 813184
+chr14 | 784328 | 784333 | 784333
+chr10 | 745446 | 745742 | 745751
+chr11 | 666445 | 666454 | 666816
+chr5 | 576869 | 576869 | 576874
+chr8 | 562639 | 562643 | 562643
+chr9 | 439885 | 439885 | 439888
+chr3 | 316613 | 316617 | 316620
+chr6 | 270148 | 270148 | 270161
+chr1 | 230208 | 230208 | 230218
+chrM | 85779 | 85779 | 85779
+
+### Observations:
+* The size file from 2008 had reported size of 2micron. There are interesting studies on 2 micron plasmid of S. cerevisiae. This figure is statistically significant.
+* Initially, in 2003, the reference method of Chromosome used English Numbers, but we see for 2008 and 2011 the use of Roman Numbers, suggesting change in refering data.
+* ChrM have same size (refering to base-pair) for all 3 years report.
+* Chr7 is very interesting and shows a decrease in size in 2011 compared to 2003 and 2008 which is surprising.Maybe it is due to deletion.
+* Chr11 shows a significant increase in size. This maybe due to insertion maybe due to transposable element.
+* Most data increases in size with respect to year or keeps the same.
+

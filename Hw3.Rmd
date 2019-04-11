@@ -1,0 +1,95 @@
+---
+title: "Homework 3"
+author: "Chandrima Bhattacharya"
+date: "26 January 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 1-3 Gierlinski data set
+
+### 1. Coding
+
+Here, I downloaded the summary file named 2194841 which contains information about the links for the file to be downloaded, after creating the folder.
+
+```{download}
+Downloading Descriptive File:
+  
+cd angsd_hw/
+mkdir hw3
+cd hw3
+wget https://ndownloader.figshare.com/files/2194841
+```
+
+I chose those data only which are of wild type and from biological replicate 2 and saved in a file named accesion_no.
+
+```{seperate}
+Seperating the Dataset:
+  
+egrep "WT" 2194841 > wild_type
+egrep "\b2$" wild_type | cut -f 1 > accesion_no
+```
+
+Based on the following criteria, I downloaded the datasets.
+
+```{DownloadTechReplicate}
+Downloading the Datasets:
+
+for val in `cat accesion_no`; do 
+wget ftp.sra.ebi.ac.uk/vol1/fastq/ERR458/${val}/${val}.fastq.gz; 
+done
+```
+
+I have used two methods to explore the read counts. The first one is counting lines and dividing by four as fastq sequence contains 4 line to define data.
+
+```{CountRead1}
+Exploring the number of reads:
+
+for val in `ls *.fastq.gz`; do 
+zcat ${val} | echo ${val} $((`wc -l`/4)); 
+done
+```
+
+The other method I used was counting the number of times the file name is referenced, as in fastq file, for every new occurence, the name of the file is called.Both gave the same results which is mentioned below in tabular form.
+
+```{CountRead2}
+for val in `ls *.fastq.gz`; do
+zcat ${val} | egrep '^@ERR4588' | wc -l
+done
+```
+
+### 2. Theory Question
+
+In this experiment, RNA-seq was used to compare the transciptome of a wild type yeast strain with a knock-out mutant. Here, in question 2, I assume the presence of 48 biological replicates along with each biological replicate having 7 technical replicates, is the reason for multiple fastq files. Use of replicates is advantageous for the following reasons:
+
+* Replicates are used to measure variation in the experiment so that statistical tests can be applied to evaluate differences.
+
+* Averaging across replicates increases the precision of gene expression measurements and allows smaller changes to be detected.
+
+* Replicates can be compared to locate outlier results that may occur due to aberrations within the array, the sample, or the experimental procedure.
+
+In a biological replicate, the samples are supposed to be identical and similar. Biological replicates are used to test the variability between samples that were selected on the basis of being otherwise identical.
+
+Technical replicate, on the other hand, is  used to test the variability in the testing protocol itself. I assume, a technical replicate is made by testing the same sample multiple times.
+
+### 3. Number of reads count:
+
+File Name |Number of counts
+----------|-----------
+ERR458878 | 1467569
+ERR458879 | 1450012
+ERR458880 | 1441569
+ERR458881 | 1321748
+ERR458882 | 1131784
+ERR458883 | 1140688
+ERR458884 | 1461646
+
+# 4. Project Ideas
+
+* Study available metagenomic data, including sequencing data (e.g.: WGS)  for various cities/countries [Few samples are present in the NCBI]. Following this, if we use tools to predict the various phylum, classes, etc., i.e. the biodiversity of the city, for the given dataset. After, subdividing the various metagenomes into classes, we can see which kingdom/phylum is most prominent for which cities. Also, we can explore whether a city can be uniquely identified by any microbiome of metagenomic pattern, which would give us the opportunity to represent cities by their metagenomic fingerprints.
+
+* Study genome-wide association approach for a particular disease (e.g.: Breast Cancer and role of TGF-beta, etc.) focusing mostly on next-generation sequencing data. Followed by this, I would use multiple data types (e.g., ChIP-seq, ATAC-seq, RNA-seq), and try to understand the various approach for the disease. I would like to determine the hotspots of genomic mutations and how do the products of those loci impact on the disease. This includes detecting those genomic loci, analyzing the altered products from those loci and studying their dysregulated functions.
+

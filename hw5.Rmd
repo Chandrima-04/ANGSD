@@ -1,0 +1,182 @@
+---
+title: "Homework 5"
+author: "Chandrima Bhattacharya"
+date: "11 February 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Question 1
+
+First we go to the directory and create the bash file.
+
+```{directory}
+cd angsd_hw/hw3/bin
+vim hw5.bash
+```
+
+The script used is as follows.
+
+```{script_code}
+#!/bin/bash
+
+spack load star@2.6.1a
+spack load bwa@0.7.15%gcc@6.3.0
+
+# Run STAR
+
+STAR -- runMode alignReads \
+     -- genomeDir ~ luce/angsd/referenceGenomes/sacCer3_STARindex \
+     -- readFilesIn ~/angsd_hw/hw3/ERR458878.fastq.gz \
+     -- readFilesCommand zcat \
+     -- outFileNamePrefix ERR458878. \
+     -- outSAMtype BAM SortedByCoordinate
+
+# Run BWA
+bwa mem ~luce/angsd/referenceGenomes/sacCer3_BWAindex/sacCer3 ~/angsd_hw/hw3/ERR458878.fastq.gz > ~/angsd_hw/hw3/alignments/ERR458878.bwa.sam
+```
+
+Then we gave permission for the file and ran it.
+
+```{permission}
+chmod +x hw5.bash
+./hw5.bash
+```
+
+
+## Question 2
+
+For viewing the subset of chromosome 1 we do the following.
+
+#### STAR:
+
+```{star_subset}
+samtools view -h ERR458878.Aligned.sortedByCoord.out.bam | egrep 'chrI\b' > chrI_STAR
+cat chrI_STAR | wc -l
+```
+
+29015
+
+The following can also be used, but as the file is not indexed, we will get an error.
+
+```{star_subset}
+samtools view -h alignment.Aligned.sortedByCoord.out.bam chr1
+```
+
+#### BWA:
+
+```{star_subset}
+samtools view -h ERR458878.bwa.sam | egrep 'chrI\b' > chrI_bwa
+cat chrI_bwa | wc -l
+```
+
+29754
+
+## Question 3
+
+### (a) STAR fields
+
+* STAR has NH,HI,AS and nM.
+* NH means number of reported alignments for the query sequence
+* HI means query is i-th hit store in the file
+* AS means alignment score
+* nM means the number of mismatches per (paired) alignment
+
+### (b) BWA fields
+
+* BWA has NM MD AS XS XA
+* NM means edit distance of the query to the reference
+* MD means string that contains the exact positions of mismatches
+* XS means suboptimal alignment score
+* XA means alternative hits, which is split of a read, and also meaningful for question 3.4
+
+
+### (c) Mapping Interpretation
+
+
+```{check_stats}
+spack load samtools@1.9%gcc@6.3.0
+cd alignments
+samtools stats ERR458880.bwa.sam > ERR458878.stats
+cat ERR458878.stats | grep ^SN | cut -f 2-
+cd ..
+cat ERR458878.Aligned.sortedByCoord.out.bam > ERR458878_star.stats
+cat ERR458878_star.stats | grep ^SN | cut -f 2-
+```
+
+#### STAR:
+
+I looked into the files with the following command.
+
+Property | STAR | BWA
+----------|-------|-------
+raw total sequences |   1415412 |  1467569
+filtered sequences |    0 | 0
+sequences |    1415412 |  1467569
+is sorted |    1 | 0
+1st fragments|1415412 |  1467569
+last fragments|0 | 0
+reads mapped|  1415412 | 1429949
+reads mapped and paired|0|        0       
+reads unmapped| 0|  37620
+reads properly paired|0|  0      
+reads paired| 0|  0       
+reads duplicated| 0|       0      
+reads MQ0|    2918   | 151230
+reads QC failed|0 |   0
+non-primary alignments|165280 | 0
+total length|  72186012 |  74846019      
+total first fragment length|  72186012|  74846019        
+total last fragment length|   0   | 0   
+bases mapped| 72186012| 72927399
+bases mapped (cigar)| 71815258 |  72561785      
+bases trimmed|  0| 0
+bases duplicated|     0| 0
+mismatches| 0  |   378942    
+error rate|   0.000000e+00   | 5.222336e-03 
+average length|51|51
+average first fragment length|51|51
+average last fragment length|0| 0
+maximum length|51|51
+maximum first fragment length|0| 0
+maximum last fragment length|0| 0
+average quality| 36.1|  36.1
+insert size average| 0.0| 0.0
+insert size standard deviation| 0.0| 0.0
+inward oriented pairs|0 |  0
+outward oriented pairs| 0|0
+pairs with other orientation|0| 0
+pairs on different chromosomes|0|0
+percentage of properly paired reads (%)| 0.0|  0.0
+
+We can clearly see from the above that BWA has unmapped reads which STAR doesn't. Also, STAR has lesser total raw sequences when compared with BWA. Also BWA have mismatches as seen.
+
+### (d) Check Split
+
+To identify the split, I first did the following.
+
+```{check_split}
+cat chrI_bwa | head -n 50
+```
+
+Sequence identified to have a split: GGCGAAAATCAAGACGTGTTCTTCCTTACCCTTCTTGTCCAAACCGTAAGC
+
+#### BWA 
+
+```{bwa_split}
+samtools view ERR458878.bwa.sam | egrep 'GGCGAAAATCAAGACGTGTTCTTCCTTACCCTTCTTGTCCAAACCGTAAGC' | wc -l
+```
+
+2
+
+#### STAR
+
+```{star_split}
+samtools view ERR458878.Aligned.sortedByCoord.out.bam | egrep 'GGCGAAAATCAAGACGTGTTCTTCCTTACCCTTCTTGTCCAAACCGTAAGC' | wc -l
+```
+
+4
+

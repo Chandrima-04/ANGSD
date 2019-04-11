@@ -1,0 +1,165 @@
+---
+title: "Homework 4"
+author: "Chandrima Bhattacharya"
+date: "31 January 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Gierlinski Dataset
+
+### Problem 1
+
+After logging into the directory with Gierlinski dataset previously downloaded, I run a loop to run fastqc in extract mode, followed by trimgalore to remove adapter sequences.
+
+```{remove_adapter_sequence}
+cd angsd_hw/hw3
+for file in `ls *.fastq.gz`; do 
+fastqc ${file} --extract; trim_galore --illumina ${file}; 
+done
+```
+
+
+After this, I run fastqc on trimmed files.
+
+```{fastqc_on_removed_adapter_sequences}
+for file in `ls *trimmed.fq.gz`; do 
+fastqc ${file} --extract; 
+done
+```
+
+I get the basic statistics of the trimmed and untrimmed fastqc files to see important features.
+
+```{basic_statistics}
+for file in `ls *_fastqc/fastqc_data.txt`; do 
+cat ${file} | head -n 11; 
+done
+```
+
+I have copied the sample output for one file below.
+
+```{}
+##FastQC        0.11.7
+Basic Statistics      pass
+#Measure        Value
+Filename        ERR458878.fastq.gz
+File type       Conventional base calls
+Encoding        Sanger / Illumina 1.9
+Total Sequences 1467569
+Sequences flagged as poor quality       0
+Sequence length 51
+%GC     42
+>>END_MODULE
+##FastQC        0.11.7
+>>Basic Statistics      pass
+#Measure        Value
+Filename        ERR458878_trimmed.fq.gz
+File type       Conventional base calls
+Encoding        Sanger / Illumina 1.9
+Total Sequences 1467025
+Sequences flagged as poor quality       0
+Sequence length 20-51
+%GC     42
+>>END_MODULE
+```
+
+Based on repeated information for technical replicates, I figured out that an important comparison is the Total Sequences parameter. Hence, I acquired the following data and have reported it in the form of the table below.
+
+```{get_total_seq_length}
+for file in `ls *_fastqc/fastqc_data.txt`; do 
+egrep '^Total Sequence' ${file};
+echo ${file};
+done
+```
+
+File Accesion Number | Total Sequences in Untrimmed File | Total Sequences in Trimmed File
+------------|---------------------------|------------------------
+ERR458878 | 1467569 | 1467025
+ERR458879 | 1450012 | 1449462
+ERR458880 | 1441569 | 1441054
+ERR458881 | 1321748 | 1321308
+ERR458882 | 1131784 | 1131400
+ERR458883 | 1140688 | 1140294
+ERR458884 | 1461646 | 1461096
+
+* Change in total sequence length proves the presence of adapter sequences.
+* GC-percent remains the same : 42% for for both trimmed and untrimmed data.
+* The sequence lenghth for untrimmed is 51, while sequence length is 20-51 in trimmed version.
+* The encoding was done using Sanger/Illumina 1.9 version.
+* Also, no sequence was flagged as poor for both trimmed and untrimmed versions.
+
+### Problem 2
+
+In this dataset, there are 48 biological replicates and each have 7 technical replicates. Hence, I think we need to combine the technical replicates. We usually need for downstream calculations of statistical significance of statistical power of your results later on. Biological replicates are inherently more noisy, while for statistical testing we would want a more robust model, hence if we average the sequence.
+If the technical replicates seems important, we can run ANOVA to check their significance. If they aren't averaging or merging the data by other means seems an interesting option.
+
+### Problem 3
+
+I think obtaining the mean of your technical replicates would help us combine it. Some of the tools present for analysing NGS data, like STAR, etc., usually have functions to merge the technical replicates. Also, tools like FASTQC can check for duplicates.
+
+If we just want to combine several fastq files into one, without averaging, we can use the following command to do so:
+
+```{combine_fq}
+cat *.fastq > bigfile.fastq
+```
+
+### Problem 4
+
+Phred score, Q is calculated as follows:   
+
+```{Phred_score}
+Q = -10 log10(P)
+```
+
+Hence, higher the value, better should be the result. '#' is a Phred score that is more likely to be incorrect than the ';', as ';' has a higher Phred score.
+
+### Problem 5
+
+Few problems and their remedies for reducing base-line errors are:
+
+* For experiments that run for long time (span of few weeks), the chemicals starts degrading. To avoid this, we should keep adding the chemical and reagents. 
+
+* Extraneous objects on the flow cell like dust, air bubbles, etc can be reason for error. We should be careful while doing the experiment.
+
+* Laser should be calibrated properly to reduce the error.
+
+* Unsynchronized fragments often leads to baseline error too.
+
+* Interfering signals from neighbouring clusters or bases might cause baseline error. The signals must be properly interpreted.
+
+### Problem 6
+
+The baseline uncertainty of Illumina is around 10e-4.1. Thus a file with 1 million 50bp reads should have at least 3972bp to be wrong. 
+For me, this error can be pretty concerning. For example, in a metagenomic data, such a high error can generate a lot of biases. 
+
+# Project Idea
+
+### Problem 7
+
+The role of the environment on health have always been accounted for. We see an increase in studies of environmental microbes, especially present in common transport systems. The fact that people invest a significant amount of commute time in mass transport, makes it an important medium for transfer of microbial diseases amongst the local niche. Environmental microbes have been studied in multiple locations like skin, etc., but the variation has not been studied based on the material present in. However, the microbial structure may vary depending on the composition of a given material. For example, wood would be home to microbes that can utilize cellulose, hemicellulose or lignin for their growth whereas metal such as iron can support the growth of those bacteria that can use iron as a source of energy. I hypothesize that studying the varying chemical composition of the mass transit system, we can create unique a unique microbial fingerprint for material, which can be used to develop strategies to prevent the spread of microbe borne infectious diseases. 
+
+In recent time, shotgun and 16S sequencing data are common parameters for studying metagenomic datasets. First, studying the taxonomic classification which can be done using common tools like MetaPhlan, QIIME or web-based tools like MG-Rast, One-Codex. After getting the composition, we can test the hypothesis of whether each material has their unique microbes, with the help of the taxonomic classification. Also, we can try using machine-learning to see how accurately the algorithm can predict the material, and if the prediction is better than random chance, then explore other statistical methods to test our hypothesis.
+
+
+### Problem 8
+
+The data I am planning to use is mostly defined in the paper "Geospatial Resolution of Human and Bacterial Diversity with city-scale metagenomics". 1457 samples have been collected across NYC for 24 subway lines of NYC MTA, Staten Island Railway, Gowanus Canal and a closed subway station which had been submerged after 2012 hurricane Sandy. The data is verified by Sequence Read Archive and is present under project PRJNA271013 and study SRP051511. Shotgun sequencing has been used to generate 10.4 bn pair-end data, at an average 3.6M read depth. 
+
+There can be multiple biases which can be seen. 
+
+* The collection and storage of metagenomic samples can be a huge cause of bias. 
+
+* Even the use of different lytic enzymes would have introduced biases during DNA extraction. 
+
+* Also, multiple types of biases can be introduced during sequencing, due to environmental pollutants, etc. As metagenomic data doesn't have a reference, it might be difficult to handle such biases. 
+
+* Also, while analyzing data, improper handling might lead to biases. As the sizes of sample collected vary hugely, choices of relative and absolute interpretation of data might lead to biases too.
+
+### References:
+
+* Afshinnekoo, Ebrahim, et al. "Geospatial resolution of human and bacterial diversity with city-scale metagenomics." Cell systems 1.1 (2015): 72-87.
+
+* Brooks, J. Paul, et al. "The truth about metagenomics: quantifying and counteracting bias in 16S rRNA studies." BMC microbiology 15.1 (2015): 66.
